@@ -1,40 +1,75 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { useDispatch } from 'react-redux';
+import { loginStart, loginSuccess, loginFailure } from '../redux/authSlice';
 import OAuth from '../components/OAuth';
+import api from '../utils/axios';
+import LoadingSpinner from '../components/LoadingSpinner';
 
 const SignIn = () => {
-  const [formData, setFormData] = useState({});
-  const [isForgotPasswordHovered, setIsForgotPasswordHovered] = useState(false);
+  const [formData, setFormData] = useState({
+    email: '',
+    password: ''
+  });
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
+  const [error, setError] = useState('');
   const navigate = useNavigate();
+  const dispatch = useDispatch();
 
   const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.id]: e.target.value });
+    setFormData({
+      ...formData,
+      [e.target.name]: e.target.value
+    });
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setLoading(true);
+    setError('');
+    dispatch(loginStart());
+
     try {
-      setLoading(true);
-      const res = await fetch('/api/auth/signin', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(formData)
-      });
-      const data = await res.json();
-	console.log('signin Data: ', data);
-      setLoading(false);
-      if (data.success === false) {
-        setError(data.message || 'Something went wrong!');
-        return;
+      console.log('Attempting to sign in with:', formData);
+      const response = await api.post('/auth/signin', formData);
+      console.log('Signin response:', response);
+
+      if (response.data.success && response.data.token) {
+        const { token, user } = response.data;
+        console.log('Login successful, token:', token);
+        console.log('User data:', user);
+        
+        // Dispatch success action
+        dispatch(loginSuccess({ token, role: user.role }));
+        
+        // Store user data in localStorage
+        localStorage.setItem('token', token);
+        console.log('Token stored in localStorage:', localStorage.getItem('token'));
+        localStorage.setItem('role', user.role);
+        localStorage.setItem('email', user.email);
+        localStorage.setItem('username', user.username);
+        
+        // Redirect to report page
+        navigate('/report');
+      } else {
+        console.log('Invalid response format:', response.data);
+        setError('Invalid credentials');
+        dispatch(loginFailure('Invalid credentials'));
       }
-      navigate('/Report');
     } catch (error) {
+      console.error('Signin error:', error);
+      if (error.response) {
+        const errorMessage = error.response.data?.message || 'Invalid credentials';
+        console.log('Error response:', error.response.data);
+        setError(errorMessage);
+        dispatch(loginFailure(errorMessage));
+      } else {
+        const errorMessage = 'Network error. Please try again.';
+        setError(errorMessage);
+        dispatch(loginFailure(errorMessage));
+      }
+    } finally {
       setLoading(false);
-      setError('Something went wrong!');
     }
   };
 
@@ -47,120 +82,79 @@ const SignIn = () => {
   };
 
   return (
-    <div style={styles.container}>
-      <div style={styles.form}>
-        <div style={styles.header}>
-          <h1 style={styles.headerText}>LOGIN</h1>
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-md w-full space-y-8">
+        <div>
+          <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
+            Sign in to your account
+          </h2>
         </div>
-        <form style={styles.formFields} onSubmit={handleSubmit}>
-          <input
-            onChange={handleChange}
-            type="email"
-            placeholder='Email'
-            id='email'
-            style={styles.input}
-          />
-          <input
-            onChange={handleChange}
-            type="password"
-            placeholder='Password'
-            id='password'
-            style={styles.input}
-          />
-          <button
-            type="submit"
-            style={styles.button}
-            disabled={loading}
-          >
-            {loading ? 'Loading...' : 'Login'}
-          </button>
-          <button
-            type="button"
-            style={{ ...styles.forgotButton, ...(isForgotPasswordHovered ? styles.forgotButtonHover : {}) }}
-            onClick={navigateToOtp}
-            onMouseEnter={() => setIsForgotPasswordHovered(true)}
-            onMouseLeave={() => setIsForgotPasswordHovered(false)}
-          >
-            Forgot Password?
-          </button>
-          <div style={styles.footer}>
-            <p>Don't have an account?</p>
-            <Link to="/signup" style={styles.link}>Sign up</Link>
+        <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
+          {error && (
+            <div className="text-red-500 text-center">{error}</div>
+          )}
+          <div className="rounded-md shadow-sm -space-y-px">
+            <div>
+              <label htmlFor="email" className="sr-only">
+                Email address
+              </label>
+              <input
+                id="email"
+                name="email"
+                type="email"
+                required
+                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-t-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
+                placeholder="Email address"
+                value={formData.email}
+                onChange={handleChange}
+              />
+            </div>
+            <div>
+              <label htmlFor="password" className="sr-only">
+                Password
+              </label>
+              <input
+                id="password"
+                name="password"
+                type="password"
+                required
+                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-b-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
+                placeholder="Password"
+                value={formData.password}
+                onChange={handleChange}
+              />
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between mt-2">
+            <div className="text-sm">
+              <Link to="/forgot-password" className="font-medium text-indigo-600 hover:text-indigo-500">
+                Forgot your password?
+              </Link>
+            </div>
+          </div>
+
+          <div>
+            <button
+              type="submit"
+              disabled={loading}
+              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+            >
+              {loading ? <LoadingSpinner size={20} /> : 'Sign in'}
+            </button>
           </div>
         </form>
         <OAuth />
-        {error && <p style={styles.error}>{error}</p>}
+        <div style={styles.footer}>
+          <p>Don't have an account?</p>
+          <Link to="/signup" style={styles.link}>Sign up</Link>
+        </div>
       </div>
     </div>
   );
 };
 
 const styles = {
-  container: {
-    backgroundColor: '#f5f5f5',
-    display: 'flex',
-    justifyContent: 'center',
-    alignItems: 'center',
-    minHeight: '100vh',
-    padding: '1rem'
-  },
-  form: {
-    background: '#ffffff',
-    borderRadius: '8px',
-    boxShadow: '0 4px 8px rgba(0, 0, 0, 0.1)',
-    maxWidth: '400px',
-    width: '100%',
-    padding: '2rem',
-    margin: '1.5rem 0' // Added margin to create space between form container and other elements
-  },
-  header: {
-    backgroundColor: '#007BFF',
-    padding: '1rem',
-    borderRadius: '8px 8px 0 0',
-    textAlign: 'center',
-    marginBottom: '1rem' // Added margin to create space between the header and the input fields
-  },
-  headerText: {
-    color: '#ffffff',
-    margin: 0,
-    fontSize: '2rem'
-  },
-  formFields: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '1rem'
-  },
-  input: {
-    background: '#f5f5f5',
-    border: '1px solid #ddd',
-    padding: '0.75rem',
-    borderRadius: '4px'
-  },
-  button: {
-    background: '#007BFF',
-    color: '#fff',
-    padding: '0.75rem',
-    border: 'none',
-    borderRadius: '4px',
-    cursor: 'pointer',
-    fontWeight: 'bold',
-    textAlign: 'center'
-  },
-  forgotButton: {
-    background: '#007BFF',
-    color: '#fff',
-    padding: '0.75rem',
-    border: 'none',
-    borderRadius: '4px',
-    cursor: 'pointer',
-    fontWeight: 'bold',
-    textAlign: 'center',
-    marginTop: '1rem',
-    transition: 'background-color 0.3s ease'
-  },
-  forgotButtonHover: {
-    background: '#0056b3'
-  },
   footer: {
     display: 'flex',
     justifyContent: 'space-between',
@@ -170,13 +164,7 @@ const styles = {
   link: {
     color: '#007BFF',
     textDecoration: 'none'
-  },
-  error: {
-    color: '#f00',
-    marginTop: '1rem',
-    textAlign: 'center'
   }
 };
-
 
 export default SignIn;

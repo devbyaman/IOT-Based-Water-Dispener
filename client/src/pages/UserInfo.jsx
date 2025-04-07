@@ -1,45 +1,147 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
 import moment from 'moment-timezone';
+import api from '../utils/axios';
+import styled from 'styled-components';
+
+// Function to get token from cookies
+const getTokenFromCookies = () => {
+  const cookies = document.cookie.split(';');
+  for (let i = 0; i < cookies.length; i++) {
+    const cookie = cookies[i].trim();
+    if (cookie.startsWith('token=')) {
+      return cookie.substring(6);
+    }
+  }
+  return null;
+};
+
+const TableContainer = styled.div`
+  width: 100%;
+  height: calc(100vh - 200px);
+  overflow-x: auto;
+  overflow-y: auto;
+  border-radius: 8px;
+  background-color: #ffffff;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  margin-top: 10px;
+  -webkit-overflow-scrolling: touch;
+
+  @media (max-width: 768px) {
+    height: calc(100vh - 250px);
+    margin: 5px;
+  }
+`;
+
+const Table = styled.table`
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 600px; // Ensure table doesn't get too narrow on mobile
+
+  @media (max-width: 768px) {
+    min-width: 800px; // Allow horizontal scrolling on mobile
+  }
+`;
+
+const TableHeader = styled.th`
+  background-color: #007bff;
+  color: white;
+  border: 1px solid #007bff;
+  padding: 12px;
+  font-weight: bold;
+  font-size: 16px;
+  text-align: center;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+
+  @media (max-width: 768px) {
+    padding: 8px;
+    font-size: 14px;
+  }
+`;
+
+const TableCell = styled.td`
+  border: 1px solid #dee2e6;
+  padding: 10px;
+  font-size: 14px;
+  text-align: center;
+
+  @media (max-width: 768px) {
+    padding: 8px;
+    font-size: 12px;
+  }
+`;
+
+const TableRow = styled.tr`
+  &:nth-child(even) {
+    background-color: #f9f9f9;
+  }
+
+  @media (max-width: 768px) {
+    &:hover {
+      background-color: #f0f0f0;
+    }
+  }
+`;
 
 const UserInfo = () => {
   const [tableData, setTableData] = useState([]);
   const [filteredData, setFilteredData] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
-    // Fetch data from the API when the component mounts
-    axios.get('https://iotdevice.apdp.co.in/api/records')
-      .then(response => {
-        const data = response.data;
-        setTableData(data);
-        setFilteredData(data);
-      })
-      .catch(error => {
-        console.error('There was an error fetching the data!', error);
-      });
-  }, []);
-
-  useEffect(() => {
-    // Filter the records based on the search query
-    const filterRecords = () => {
-      if (searchQuery.trim() === '') {
-        setFilteredData(tableData);
-      } else {
-        const queryLower = searchQuery.toLowerCase();
-        const filtered = tableData.filter(record => {
-          return (
-            record.location.toLowerCase() === queryLower ||
-            record.username.toLowerCase() === queryLower ||
-            record.deviceId.toLowerCase() === queryLower ||
-            record.phoneNo.toLowerCase() === queryLower
-          );
-        });
-        setFilteredData(filtered);
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        
+        console.log('Fetching data from /records endpoint');
+        const response = await api.get('/records');
+        console.log('API Response:', response);
+        
+        if (response.data) {
+          setTableData(response.data);
+          setFilteredData(response.data);
+        } else {
+          console.error('No data received from API');
+          setError('No data available');
+        }
+      } catch (error) {
+        console.error('Error fetching data:', error);
+        if (error.response) {
+          console.error('Error response:', error.response);
+          if (error.response.status === 401) {
+            setError('Session expired. Please sign in again.');
+            localStorage.removeItem('token');
+            window.location.href = '/signin';
+          } else {
+            setError(error.response.data?.message || 'Error fetching data');
+          }
+        } else {
+          setError('Network error. Please try again.');
+        }
+      } finally {
+        setLoading(false);
       }
     };
 
-    filterRecords();
+    fetchData();
+  }, []);
+
+  useEffect(() => {
+    if (searchQuery.trim() === '') {
+      setFilteredData(tableData);
+    } else {
+      const filtered = tableData.filter(record => 
+        record.location?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        record.username?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        record.deviceId?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        record.phoneNo?.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+      setFilteredData(filtered);
+    }
   }, [searchQuery, tableData]);
 
   const handleSearch = (e) => {
@@ -51,16 +153,17 @@ const UserInfo = () => {
       display: 'flex',
       flexDirection: 'column',
       alignItems: 'center',
-      justifyContent: 'center',
+      justifyContent: 'flex-start',
       width: '100%',
-      flex: 1,
+      height: '100%',
       position: 'relative',
       marginBottom: '10px',
+      overflow: 'hidden',
     },
     searchBox: {
       display: 'flex',
       alignItems: 'center',
-      justifyContent: 'center', // Center content horizontally
+      justifyContent: 'center',
       width: '100%',
       maxWidth: '400px',
       zIndex: 100,
@@ -68,57 +171,28 @@ const UserInfo = () => {
       borderRadius: '8px',
       boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
       padding: '10px',
+      marginBottom: '10px',
+
+      '@media (max-width: 768px)': {
+        padding: '8px',
+        marginBottom: '5px',
+      }
     },
     searchInput: {
-      width: '100%', // Make input take full width of the searchBox
+      width: '100%',
       padding: '10px',
       fontSize: '16px',
       borderRadius: '6px',
       border: '1px solid #ced4da',
       outline: 'none',
       transition: 'border-color 0.3s',
-      textAlign: 'center', // Center text within the input
-    },
-    searchInputFocus: {
-      borderColor: '#007bff',
-    },
-    tableContainer: {
-      width: '100%',
-      maxHeight: 'calc(100vh - 200px)',
-      overflowY: 'auto',
-      borderRadius: '8px',
-      backgroundColor: '#ffffff',
-      boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
-      marginTop: '20px',
-    },
-    table: {
-      width: '100%',
-      borderCollapse: 'collapse',
-    },
-    tableHeader: {
-      backgroundColor: '#007bff',
-      color: 'white', // Text color for table headers
-      border: '1px solid #007bff',
-      padding: '12px',
-      fontWeight: 'bold',
-      fontSize: '16px',
       textAlign: 'center',
-    },
-    tableCell: {
-      border: '1px solid #dee2e6',
-      padding: '10px',
-      fontSize: '14px',
-      textAlign: 'center',
-    },
-    tableData: {
-      padding: '10px',
-      borderBottom: '1px solid #dee2e6',
-    },
-    tableRow: {
-      '&:nth-child(even)': {
-        backgroundColor: '#f9f9f9',
-      },
-    },
+
+      '@media (max-width: 768px)': {
+        padding: '8px',
+        fontSize: '14px',
+      }
+    }
   };
 
   return (
@@ -132,39 +206,49 @@ const UserInfo = () => {
           onChange={handleSearch}
         />
       </div>
-      <div style={styles.tableContainer}>
-        <table style={styles.table}>
+      
+      {loading && <div style={{ textAlign: 'center', padding: '20px' }}>Loading data...</div>}
+      
+      {error && (
+        <div style={{ color: 'red', textAlign: 'center', padding: '20px' }}>
+          Error: {error}
+        </div>
+      )}
+      
+      <TableContainer>
+        <Table>
           <thead>
             <tr>
-              <th style={styles.tableHeader}>S.No</th>
-              <th style={styles.tableHeader}>Date & Time</th>
-              <th style={styles.tableHeader}>Location</th>
-              <th style={styles.tableHeader}>Username</th>
-              <th style={styles.tableHeader}>Device ID</th>
-              <th style={styles.tableHeader}>Phone No</th>
+              <TableHeader>S.No</TableHeader>
+              <TableHeader>Date & Time</TableHeader>
+              <TableHeader>Location</TableHeader>
+              <TableHeader>Username</TableHeader>
+              <TableHeader>Device ID</TableHeader>
+              <TableHeader>Phone No</TableHeader>
             </tr>
           </thead>
           <tbody>
-            {filteredData.reverse().map((record, index) => (
-              <tr key={record._id} style={styles.tableRow}>
-                <td style={styles.tableCell}>{index + 1}</td>
-                <td style={styles.tableCell}>
-                  {record.datetime ? moment(record.datetime).tz('Asia/Kolkata').format('YYYY-MM-DD HH:mm:ss') : 'N/A'}
-                </td>
-                <td style={styles.tableCell}>{record.location}</td>
-                <td style={styles.tableCell}>{record.username}</td>
-                <td style={styles.tableCell}>{record.deviceId}</td>
-                <td style={styles.tableCell}>{record.phoneNo}</td>
-              </tr>
-            ))}
-            {searchQuery && filteredData.length === 0 && (
+            {filteredData.length > 0 ? (
+              filteredData.map((record, index) => (
+                <TableRow key={record._id || index}>
+                  <TableCell>{index + 1}</TableCell>
+                  <TableCell>
+                    {record.datetime ? moment(record.datetime).tz('Asia/Kolkata').format('YYYY-MM-DD HH:mm:ss') : 'N/A'}
+                  </TableCell>
+                  <TableCell>{record.location || 'N/A'}</TableCell>
+                  <TableCell>{record.username || 'N/A'}</TableCell>
+                  <TableCell>{record.deviceId || 'N/A'}</TableCell>
+                  <TableCell>{record.phoneNo || 'N/A'}</TableCell>
+                </TableRow>
+              ))
+            ) : (
               <tr>
-                <td style={styles.tableCell} colSpan="6">No matching records found.</td>
+                <TableCell colSpan="6" style={{ textAlign: 'center' }}>No data found</TableCell>
               </tr>
             )}
           </tbody>
-        </table>
-      </div>
+        </Table>
+      </TableContainer>
     </div>
   );
 };

@@ -1,34 +1,37 @@
 import React, { useState, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
-import {
-  updateUserStart,
-  updateUserFailure,
-  updateUserSuccess,
-  deleteUserFailure,
-  deleteUserStart,
-  deleteUserSuccess,
-} from '../redux/user/userSlice';
+import LoadingSpinner from '../components/LoadingSpinner';
 
 const Profile = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
-  const { currentUser, loading, error } = useSelector((state) => state.user);
+  const { token, role } = useSelector((state) => state.auth);
   
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [userData, setUserData] = useState(null);
   const [formData, setFormData] = useState({
-    username: currentUser?.username || '',
-    email: currentUser?.email || '',
+    username: '',
+    email: '',
     password: '',
   });
   const [updateSuccess, setUpdateSuccess] = useState(false);
 
   useEffect(() => {
-    setFormData({
-      username: currentUser?.username || '',
-      email: currentUser?.email || '',
-      password: '',
-    });
-  }, [currentUser]);
+    // Get user data from localStorage
+    const username = localStorage.getItem('username');
+    const email = localStorage.getItem('email');
+    
+    if (username && email) {
+      setUserData({ username, email });
+      setFormData({
+        username,
+        email,
+        password: '',
+      });
+    }
+  }, []);
 
   const handleChange = (e) => {
     const { id, value } = e.target;
@@ -37,56 +40,64 @@ const Profile = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    dispatch(updateUserStart());
+    setLoading(true);
+    setError(null);
 
     try {
-      const res = await fetch(`/api/user/update/${currentUser._id}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
-      });
-      const data = await res.json();
-      if (data.success) {
-        dispatch(updateUserSuccess(data));
-        setUpdateSuccess(true);
-      } else {
-        dispatch(updateUserFailure(data));
+      // Simple validation
+      if (!formData.username.trim()) {
+        throw new Error("Username is required");
       }
+      
+      if (formData.password && formData.password.length < 6) {
+        throw new Error("Password must be at least 6 characters");
+      }
+
+      // For now, just update localStorage
+      localStorage.setItem('username', formData.username);
+      if (formData.email) localStorage.setItem('email', formData.email);
+      
+      setUserData({
+        username: formData.username,
+        email: formData.email
+      });
+      
+      setUpdateSuccess(true);
+      setTimeout(() => setUpdateSuccess(false), 3000);
     } catch (error) {
-      dispatch(updateUserFailure(error));
+      setError(error.message);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleDeleteAccount = async () => {
-    dispatch(deleteUserStart());
-
-    try {
-      const res = await fetch(`/api/user/delete/${currentUser._id}`, { method: 'DELETE' });
-      const data = await res.json();
-      if (data.success) {
-        dispatch(deleteUserSuccess(data));
-        navigate('/');
-      } else {
-        dispatch(deleteUserFailure(data));
-      }
-    } catch (error) {
-      dispatch(deleteUserFailure(error));
-    }
+  const handleSignOut = () => {
+    // Clear localStorage
+    localStorage.removeItem('token');
+    localStorage.removeItem('role');
+    localStorage.removeItem('username');
+    localStorage.removeItem('email');
+    
+    // Dispatch logout action
+    dispatch({ type: 'auth/logout' });
+    
+    // Navigate to home
+    navigate('/');
   };
 
   const styles = {
     container: {
-      backgroundColor: '#F4F4F4', // Changed background color to a lighter shade
+      backgroundColor: '#F4F4F4',
       padding: '2rem',
-      minHeight: '100vh',
+      minHeight: 'calc(100vh - 100px)',
     },
     card: {
       padding: '1rem',
       maxWidth: '30rem',
       margin: '0 auto',
-      backgroundColor: '#ffffff', // Card background color
+      backgroundColor: '#ffffff',
       borderRadius: '1.5rem',
-      boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)', // Added shadow for better visual
+      boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
     },
     title: {
       fontSize: '2rem',
@@ -117,13 +128,17 @@ const Profile = () => {
       border: 'none',
       transition: 'opacity 0.3s',
     },
-    deleteButton: {
+    signOutButton: {
       backgroundColor: '#EF4444',
       color: '#fff',
-      padding: '0.5rem 1rem',
+      padding: '0.75rem',
       borderRadius: '0.5rem',
+      fontSize: '1rem',
       cursor: 'pointer',
       border: 'none',
+      transition: 'opacity 0.3s',
+      marginTop: '1rem',
+      width: '100%'
     },
     buttonContainer: {
       display: 'flex',
@@ -147,6 +162,10 @@ const Profile = () => {
     },
   };
 
+  if (!userData) {
+    return <LoadingSpinner fullScreen />;
+  }
+
   return (
     <div style={styles.container}>
       <div style={styles.card}>
@@ -167,26 +186,29 @@ const Profile = () => {
             value={formData.email}
             style={styles.input}
             onChange={handleChange}
+            disabled
           />
           <input
             type="password"
             id="password"
-            placeholder="Password"
+            placeholder="New Password (leave empty to keep current)"
             style={styles.input}
             onChange={handleChange}
           />
           <button type="submit" style={styles.submitButton} disabled={loading}>
-            {loading ? 'Updating...' : 'Update'}
+            {loading ? 'Updating...' : 'Update Profile'}
           </button>
         </form>
-        <div style={styles.buttonContainer}>
-          <button onClick={handleDeleteAccount} style={styles.deleteButton}>
-            Delete Account
-          </button>
-        </div>
-        {error && <p style={styles.errorText}>Something went wrong!</p>}
-        {updateSuccess && <p style={styles.successText}>User updated successfully!</p>}
-        {loading && <p style={styles.loadingText}>Please wait...</p>}
+        
+        <button 
+          onClick={handleSignOut} 
+          style={styles.signOutButton}
+        >
+          Sign Out
+        </button>
+        
+        {error && <p style={styles.errorText}>{error}</p>}
+        {updateSuccess && <p style={styles.successText}>Profile updated successfully!</p>}
       </div>
     </div>
   );

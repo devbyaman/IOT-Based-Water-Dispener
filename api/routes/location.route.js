@@ -1,10 +1,14 @@
 import express from 'express';
-import { createLocation, getLocation, updateLocation, deleteLocation } from '../controllers/location.controller.js';
+import { verifyToken } from '../middleware/auth.middleware.js';
+import { getLocations, getLocation, updateLocation, deleteLocation } from '../controllers/location.controller.js';
 
 const router = express.Router();
 
-router.post('/', createLocation); // Fixed route
-router.get('/', getLocation);
+// Apply auth middleware to all routes
+router.use(verifyToken);
+
+router.get('/', getLocations);
+router.get('/:id', getLocation);
 router.put('/:id', updateLocation);
 router.delete('/:id', deleteLocation);
 

@@ -1,0 +1,9 @@
+Server time out.
+--add return of token while signing in auth controllers and fetch it in client side
+
+Api data leak
+--add a middlewware to check authorization of users
+OTP
+Profile password reset
+--verify otp after entering editable details of users and show users details in profile section.
+Responsiveness

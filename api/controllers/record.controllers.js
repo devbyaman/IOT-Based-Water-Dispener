@@ -42,8 +42,11 @@ export const createRecord = async (req, res, next) => {
 
 // Get all records
 export const getRecords = async (req, res, next) => {
+    console.log("getRecords method is called.");
     try {
         const records = await Record.find();
+        console.log("check point 2");
+        
         res.status(200).json(records);
     } catch (error) {
         next(error);

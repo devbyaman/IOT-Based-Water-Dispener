@@ -1,27 +1,30 @@
 import { combineReducers, configureStore } from '@reduxjs/toolkit';
-import userReducer from './user/userSlice.js';
+import authReducer from './authSlice';
 import {
-    persistStore,
-    persistReducer,
-  } from 'redux-persist'
+  persistStore,
+  persistReducer,
+} from 'redux-persist'
 import storage from 'redux-persist/lib/storage';
 
-const rootReducer = combineReducers({ user: userReducer });
-
+// Only persist the auth reducer
 const persistConfig = {
-  key: 'root',
-  version: 1,
+  key: 'auth',
   storage,
+  whitelist: ['token', 'role', 'isAuthenticated']
 };
 
-const persistedReducer = persistReducer(persistConfig, rootReducer);
+const persistedAuthReducer = persistReducer(persistConfig, authReducer);
+
+const rootReducer = combineReducers({
+  auth: persistedAuthReducer
+});
 
 export const store = configureStore({
-    reducer: persistedReducer,
-    middleware: (getDefaultMiddleware) =>
-      getDefaultMiddleware({
-        serializableCheck: false
-      }),
+  reducer: rootReducer,
+  middleware: (getDefaultMiddleware) =>
+    getDefaultMiddleware({
+      serializableCheck: false
+    }),
 });
 
 export const persistor = persistStore(store);

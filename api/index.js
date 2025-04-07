@@ -12,18 +12,37 @@ import otpRoutes from "./routes/otp.route.js";
 import cookieParser from "cookie-parser";
 import path from "path";
 import { fileURLToPath } from 'url';
+import { sanitizeResponse, rateLimiter } from './middleware/security.middleware.js';
 
 const mongodbUri = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/data';
-const jwtSecret = '6f9e76f86d325b506e891130ad7fb84f81a263c44a1d0b3bceb6b28ea53c9334';
+const jwtSecret = process.env.JWT_SECRET || '6f9e76f86d325b506e891130ad7fb84f81a263c44a1d0b3bceb6b28ea53c9334';
 
 if (!jwtSecret) {
     console.error('FATAL ERROR: JWT_SECRET is not defined.');
     process.exit(1);
 }
 
+// Configure time series collection for live data
+const timeSeriesOptions = {
+    timeseries: {
+        timeField: 'timestamp',
+        metaField: 'metadata',
+        granularity: 'seconds'
+    },
+    expireAfterSeconds: 86400 // 24 hours in seconds
+};
+
 mongoose.connect(mongodbUri)
     .then(() => {
         console.log("Succeeded to connect to MongoDB 🚀");
+        // Create time series collection if it doesn't exist
+        mongoose.connection.db.createCollection('liveData', timeSeriesOptions)
+            .then(() => console.log('Time series collection created'))
+            .catch(err => {
+                if (err.code !== 48) { // Ignore collection already exists error
+                    console.error('Error creating time series collection:', err);
+                }
+            });
     })
     .catch((err) => console.log('MongoDB connection error:', err));
 
@@ -38,11 +57,20 @@ const app = express();
 app.use(express.json());
 app.use(cookieParser());
 
-// Add CORS middleware
+// Add security middlewares
+app.use(sanitizeResponse);
+app.use(rateLimiter);
+
+// Add CORS middleware with more secure configuration
 app.use(cors({
-    origin: '*', // Allow all origins (for development only; specify your domain in production)
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'], // Allowed methods
-    allowedHeaders: ['Content-Type', 'Authorization'], // Allowed headers
+    origin: process.env.NODE_ENV === 'production' 
+        ? 'https://iotdevice.apdp.co.in'
+        : ['http://localhost:5173', 'http://localhost:3000'],
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
+    exposedHeaders: ['Content-Range', 'X-Content-Range'],
+    credentials: true,
+    maxAge: 86400 // 24 hours
 }));
 
 app.use('/api/user', userRoutes);

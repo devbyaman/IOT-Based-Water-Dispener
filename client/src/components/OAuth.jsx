@@ -1,6 +1,6 @@
 import React from 'react';
 import { useDispatch } from 'react-redux';
-import { signInSuccess } from '../redux/user/userSlice';
+// import { signInSuccess } from '../redux/user/userSlice';
 import { useNavigate } from 'react-router-dom';
 
 const OAuth = () => {
@@ -21,7 +21,7 @@ const OAuth = () => {
       });
 
       const data = await res.json();
-      dispatch(signInSuccess(data)); // Dispatch action on successful sign-in
+      // dispatch(signInSuccess(data)); // Dispatch action on successful sign-in
       navigate('/'); // Navigate to the home page or desired route
     } catch (error) {
       console.log("Could not perform sign-in", error);

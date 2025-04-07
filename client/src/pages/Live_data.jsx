@@ -1,23 +1,166 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import ReactHTMLTableToExcel from 'react-html-table-to-excel';
+import LoadingSpinner from '../components/LoadingSpinner';
+import styled from 'styled-components';
 
-const Report = () => {
+const Container = styled.div`
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  width: 100%;
+  height: 100%;
+  position: relative;
+  margin-bottom: 10px;
+  padding: 0 10px;
+  overflow: hidden;
+
+  @media (max-width: 768px) {
+    padding: 0 5px;
+  }
+`;
+
+const SearchBox = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  width: 100%;
+  max-width: 800px;
+  background-color: #ffffff;
+  border-radius: 8px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  padding: 10px;
+  margin-bottom: 10px;
+
+  @media (max-width: 768px) {
+    padding: 8px;
+    gap: 10px;
+    margin-bottom: 5px;
+  }
+`;
+
+const SearchInput = styled.input`
+  flex: 1;
+  padding: 10px;
+  font-size: 16px;
+  border-radius: 6px;
+  border: 1px solid #ced4da;
+  outline: none;
+  transition: border-color 0.3s;
+
+  @media (max-width: 768px) {
+    padding: 8px;
+    font-size: 14px;
+  }
+`;
+
+const TableContainer = styled.div`
+  border: 2px solid #008000;
+  padding: 20px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  background-color: #f0f8ff;
+  width: 100%;
+  max-width: 1200px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  height: calc(100vh - 200px);
+
+  @media (max-width: 768px) {
+    padding: 10px;
+    margin: 0 5px 20px 5px;
+    height: calc(100vh - 250px);
+  }
+`;
+
+const Table = styled.table`
+  border: 1px solid #000;
+  border-collapse: collapse;
+  margin: 0 auto;
+  width: 100%;
+  min-width: 800px;
+
+  @media (max-width: 768px) {
+    min-width: 1000px;
+  }
+`;
+
+const Th = styled.th`
+  background-color: #d9e6f2;
+  border: 1px solid #000;
+  padding: 8px;
+  text-align: center;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+
+  @media (max-width: 768px) {
+    padding: 6px;
+    font-size: 12px;
+  }
+`;
+
+const Td = styled.td`
+  border: 1px solid #000;
+  padding: 8px;
+  text-align: center;
+
+  @media (max-width: 768px) {
+    padding: 6px;
+    font-size: 12px;
+  }
+`;
+
+const DownloadButton = styled.div`
+  background-color: ${props => props.isHovered ? '#005700' : 'white'};
+  color: black;
+  border: 2px solid #008000;
+  padding: 10px 20px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 1rem;
+  font-weight: bold;
+  transition: background-color 0.3s ease;
+  margin-top: 10px;
+  
+  &:hover {
+    background-color: #005700;
+    color: white;
+  }
+
+  @media (max-width: 768px) {
+    padding: 8px 16px;
+    font-size: 0.9rem;
+    margin-top: 5px;
+  }
+`;
+
+const Live_data = () => {
   const [tableData, setTableData] = useState([]);
   const [filteredData, setFilteredData] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [isHovered, setIsHovered] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     // Fetch data from the API when the component mounts
+    setLoading(true);
     axios.get('https://iotdevice.apdp.co.in/api/reports')
       .then(response => {
         const filtered = filterLastYearData(response.data);
         setTableData(filtered);
         setFilteredData(filtered);
+        setError(null);
       })
       .catch(error => {
         console.error('There was an error fetching the data!', error);
+        setError('Failed to load data. Please try again later.');
+      })
+      .finally(() => {
+        setLoading(false);
       });
   }, []);
 
@@ -45,7 +188,7 @@ const Report = () => {
 
     const filtered = tableData.filter(item => {
       const deviceId = item.deviceId ? String(item.deviceId).toLowerCase() : '';
-      return deviceId === query.toLowerCase(); // Only show rows with exact match
+      return deviceId.includes(query.toLowerCase()); // Changed to includes for better UX
     });
 
     setFilteredData(filtered);
@@ -55,177 +198,91 @@ const Report = () => {
     document.getElementById('test-table-xls-button').click();
   };
 
-  const styles = {
-    searchSection: {
-      display: 'flex',
-      flexDirection: 'column',
-      alignItems: 'center',
-      justifyContent: 'center',
-      width: '100%',
-      flex: 1,
-      position: 'relative',
-      marginBottom: '10px',
-    },
-    searchBoxContainer: {
-      display: 'flex',
-      alignItems: 'center',
-      marginBottom: '20px',
-    },
-    searchBox: {
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      gap: '20px',
-      width: '100%',
-      maxWidth: '800px',
-      zIndex: 100,
-      backgroundColor: '#ffffff',
-      borderRadius: '8px',
-      boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
-      padding: '10px',
-    },
-    searchInput: {
-      flex: 3,
-      padding: '10px',
-      fontSize: '16px',
-      borderRadius: '6px',
-      border: '1px solid #ced4da',
-      outline: 'none',
-      transition: 'border-color 0.3s',
-    },
-    searchInputFocus: {
-      borderColor: '#007bff',
-    },
-    searchSelect: {
-      flex: 1,
-      padding: '10px',
-      fontSize: '16px',
-      borderRadius: '6px',
-      border: '1px solid #ced4da',
-      backgroundColor: '#ffffff',
-      transition: 'border-color 0.3s',
-    },
-    tableContainer: {
-      border: '2px solid #008000',
-      padding: '20px',
-      borderRadius: '8px',
-      marginBottom: '20px',
-      backgroundColor: '#f0f8ff',
-      flex: 1,
-      minWidth: '400px',
-    },
-    downloadContainer: {
-      border: '5px solid white',
-      padding: '20px',
-      borderRadius: '8px',
-      backgroundColor: '#ffffff',
-      marginTop: '20px',
-      width: '20%',
-      display: 'flex',
-      justifyContent: 'center',
-    },
-    downloadButton: {
-      backgroundColor: isHovered ? '#005700' : 'white',
-      color: 'black',
-      border: '2px solid #008000',
-      padding: '10px 20px',
-      borderRadius: '4px',
-      cursor: 'pointer',
-      fontSize: '1rem',
-      fontWeight: 'bold',
-      transition: 'background-color 0.3s ease',
-    },
-    table: {
-      border: '1px solid #000',
-      borderCollapse: 'collapse',
-      margin: '0 auto',
-      width: '100%',
-    },
-    th: {
-      backgroundColor: '#d9e6f2',
-      border: '1px solid #000',
-      padding: '8px',
-      textAlign: 'center',
-    },
-    td: {
-      border: '1px solid #000',
-      padding: '8px',
-      textAlign: 'center',
-    },
-  };
+  if (loading) {
+    return <LoadingSpinner fullScreen />;
+  }
+
+  if (error) {
+    return (
+      <Container>
+        <div style={{ color: 'red', textAlign: 'center', padding: '20px' }}>
+          {error}
+        </div>
+      </Container>
+    );
+  }
 
   return (
-    <div style={styles.searchSection}>
-      <div style={styles.searchBoxContainer}>
-        <div style={styles.searchBox}>
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={handleSearch}
-            placeholder="Search by Device ID"
-            style={styles.searchInput}
-          />
-        </div>
-      </div>
-      <div style={styles.tableContainer}>
-        <table id="table-to-xls" style={styles.table}>
+    <Container>
+      <SearchBox>
+        <SearchInput
+          type="text"
+          value={searchQuery}
+          onChange={handleSearch}
+          placeholder="Search by Device ID"
+        />
+      </SearchBox>
+      
+      <TableContainer>
+        <Table id="table-to-xls">
           <thead>
             <tr>
-              <th style={styles.th}>S.No</th>
-              <th style={styles.th}>Device ID</th>
-              <th style={styles.th}>DateTime</th>
-              <th style={styles.th}>HandWash (500ml)</th>
-              <th style={styles.th}>BodyWash (500ml)</th>
-              <th style={styles.th}>Shampoo (500ml)</th>
-              <th style={styles.th}>HandWash (250ml)</th>
-              <th style={styles.th}>BodyWash (250ml)</th>
-              <th style={styles.th}>Shampoo (250ml)</th>
+              <Th>S.No</Th>
+              <Th>Device ID</Th>
+              <Th>DateTime</Th>
+              <Th>HandWash (500ml)</Th>
+              <Th>BodyWash (500ml)</Th>
+              <Th>Shampoo (500ml)</Th>
+              <Th>HandWash (250ml)</Th>
+              <Th>BodyWash (250ml)</Th>
+              <Th>Shampoo (250ml)</Th>
             </tr>
           </thead>
           <tbody>
             {filteredData.length > 0 ? (
               filteredData.map((row, index) => (
                 <tr key={index}>
-                  <td style={styles.td}>{index + 1}</td>
-                  <td style={styles.td}>{row.deviceId}</td>
-                  <td style={styles.td}>{new Date(row.datetime).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}</td>
-                  <td style={styles.td}>{row.handWash500 < 0 ? 0 : row.handWash500}</td>
-                  <td style={styles.td}>{row.bodyWash500 < 0 ? 0 : row.bodyWash500}</td>
-                  <td style={styles.td}>{row.shampoo500 < 0 ? 0 : row.shampoo500}</td>
-                  <td style={styles.td}>{row.handWash250 < 0 ? 0 : row.handWash250}</td>
-                  <td style={styles.td}>{row.bodyWash250 < 0 ? 0 : row.bodyWash250}</td>
-                  <td style={styles.td}>{row.shampoo250 < 0 ? 0 : row.shampoo250}</td>
+                  <Td>{index + 1}</Td>
+                  <Td>{row.deviceId}</Td>
+                  <Td>{new Date(row.datetime).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}</Td>
+                  <Td>{row.handWash500 < 0 ? 0 : row.handWash500}</Td>
+                  <Td>{row.bodyWash500 < 0 ? 0 : row.bodyWash500}</Td>
+                  <Td>{row.shampoo500 < 0 ? 0 : row.shampoo500}</Td>
+                  <Td>{row.handWash250 < 0 ? 0 : row.handWash250}</Td>
+                  <Td>{row.bodyWash250 < 0 ? 0 : row.bodyWash250}</Td>
+                  <Td>{row.shampoo250 < 0 ? 0 : row.shampoo250}</Td>
                 </tr>
               ))
             ) : (
               <tr>
-                <td colSpan="9" style={styles.td}>No data available</td>
+                <Td colSpan="9" style={{ textAlign: 'center' }}>No data found</Td>
               </tr>
             )}
           </tbody>
-        </table>
+        </Table>
+      </TableContainer>
+
+      <DownloadButton
+        isHovered={isHovered}
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
+        onClick={handleDownloadClick}
+      >
+        Download Excel
+      </DownloadButton>
+
+      <div style={{ display: 'none' }}>
+        <ReactHTMLTableToExcel
+          id="test-table-xls-button"
+          className="download-table-xls-button"
+          table="table-to-xls"
+          filename="yearly_report"
+          sheet="YearlyReport"
+          buttonText="Download as XLS"
+        />
       </div>
-      <div style={styles.downloadContainer}>
-        <button
-          style={styles.downloadButton}
-          onMouseEnter={() => setIsHovered(true)}
-          onMouseLeave={() => setIsHovered(false)}
-          onClick={handleDownloadClick}
-        >
-          Download
-          <ReactHTMLTableToExcel
-            id="test-table-xls-button"
-            className="download-table-xls-button"
-            table="table-to-xls"
-            filename="consumption_report"
-            sheet="consumption_report"
-            buttonText=""
-            style={{ display: 'none' }} // Hide the actual button
-          />
-        </button>
-      </div>
-    </div>
+    </Container>
   );
 };
 
-export default Report;
+export default Live_data;
