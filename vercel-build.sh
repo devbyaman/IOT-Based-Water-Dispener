@@ -11,7 +11,7 @@ npm install
 echo "Installing and building client..."
 cd client
 npm install
-vite build
+npm run vercel-build
 cd ..
 
 echo "Build process completed successfully!" 
