@@ -11,7 +11,7 @@ npm install
 echo "Installing and building client..."
 cd client
 npm install
-npx vite build
+vite build
 cd ..
 
 echo "Build process completed successfully!" 
