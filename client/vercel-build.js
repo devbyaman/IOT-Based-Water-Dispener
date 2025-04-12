@@ -11,7 +11,7 @@ console.log('Installing dependencies...');
 execSync('npm install', { stdio: 'inherit' });
 
 // Build the client
-console.log('Building client...');
-execSync('npm run build', { stdio: 'inherit' });
+console.log('Building client with npx vite...');
+execSync('npx vite build', { stdio: 'inherit' });
 
 console.log('Client build completed successfully!'); 
