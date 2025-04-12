@@ -24,10 +24,13 @@ const clearAuthState = () => {
 
 // Determine the base URL based on environment
 const getBaseUrl = () => {
-    // Check if we're running on the production domain
-    if (window.location.hostname === 'iotdevice.apdp.co.in') {
-        return 'https://iotdevice.apdp.co.in/api';
+    // Check if we're running on Vercel
+    if (window.location.hostname.includes('vercel.app') || 
+        window.location.hostname === 'iotdevice.apdp.co.in') {
+        // When deployed on Vercel, API requests are relative to the same domain
+        return '/api';
     }
+    
     // In development, use the localhost URL
     return 'http://localhost:3000/api';
 };

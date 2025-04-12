@@ -64,7 +64,7 @@ app.use(rateLimiter);
 // Add CORS middleware with more secure configuration
 app.use(cors({
     origin: process.env.NODE_ENV === 'production' 
-        ? 'https://iotdevice.apdp.co.in'
+        ? [process.env.FRONTEND_URL || 'https://iotdevice.apdp.co.in', /\.vercel\.app$/]
         : ['http://localhost:5173', 'http://localhost:3000'],
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
