@@ -49,25 +49,43 @@ const SignIn = () => {
     dispatch(loginStart());
 
     try {
+      console.log('Attempting signin with credentials:', { email: formData.email });
+      
       const response = await api.post('/auth/signin', formData);
+      console.log('Signin response:', response.data);
 
       if (response.data.success && response.data.token) {
         const { token, user } = response.data;
+        console.log('Login successful, storing token and user data');
 
-        dispatch(loginSuccess({ token, role: user.role }));
-
+        // Store token and user data
         localStorage.setItem('token', token);
-        localStorage.setItem('role', user.role);
+        localStorage.setItem('role', user.role || 'user');
         localStorage.setItem('email', user.email);
-        localStorage.setItem('username', user.username);
+        localStorage.setItem('username', user.username || user.name || '');
 
+        // Update Redux store
+        dispatch(loginSuccess({ token, role: user.role || 'user' }));
+
+        // Navigate to protected area
         navigate('/report');
       } else {
-        setError('Invalid credentials');
-        dispatch(loginFailure('Invalid credentials'));
+        console.error('Server returned success but no token:', response.data);
+        setError('Invalid response from server. Please try again.');
+        dispatch(loginFailure('Invalid response from server'));
       }
     } catch (error) {
-      const errorMessage = error.response?.data?.message || 'Network error. Please try again.';
+      console.error('Signin error:', error);
+      
+      let errorMessage = 'Network error. Please try again.';
+      
+      if (error.response) {
+        console.error('Error response data:', error.response.data);
+        errorMessage = error.response.data?.message || 
+                      (error.response.status === 401 ? 'Invalid credentials' : 
+                       'Server error. Please try again later.');
+      }
+      
       setError(errorMessage);
       dispatch(loginFailure(errorMessage));
     } finally {

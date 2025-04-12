@@ -41,9 +41,28 @@ const api = axios.create({
     }
 });
 
+// Array of authentication endpoints that don't require token
+const authEndpoints = [
+    '/auth/signin',
+    '/auth/signup',
+    '/auth/google',
+    '/auth/forgot-password',
+    '/auth/reset-password'
+];
+
 // Add a request interceptor
 api.interceptors.request.use(
     (config) => {
+        // Check if the request is to an auth endpoint that doesn't need authentication
+        const isAuthEndpoint = authEndpoints.some(endpoint => 
+            config.url.includes(endpoint)
+        );
+        
+        if (isAuthEndpoint) {
+            console.log('Request to auth endpoint, skipping token validation');
+            return config;
+        }
+        
         const token = localStorage.getItem('token');
         console.log('Request interceptor - Token from localStorage:', token);
         

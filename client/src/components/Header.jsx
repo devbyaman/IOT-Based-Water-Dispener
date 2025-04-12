@@ -110,12 +110,20 @@ const Header = () => {
   // Periodically check token expiration
   useEffect(() => {
     const checkTokenExpiration = () => {
-      const token = localStorage.getItem('token');
-      
-      // If token exists and is expired, log out the user
-      if (token && isTokenExpired(token)) {
-        console.log('Token expired during active session, logging out');
-        handleLogout();
+      try {
+        const token = localStorage.getItem('token');
+        
+        // Only check if token exists (don't log warnings for no token)
+        if (token) {
+          // Check if token is expired
+          if (isTokenExpired(token)) {
+            console.log('Token expired during active session, logging out');
+            handleLogout();
+          }
+        }
+      } catch (error) {
+        console.error('Error checking token expiration:', error);
+        // Don't auto-logout on error checking the token - could be temporary
       }
     };
     
@@ -129,9 +137,16 @@ const Header = () => {
   }, []);
 
   const handleLogout = () => {
-    dispatch(logout());
-    clearAuthState();
-    navigate('/signin');
+    try {
+      console.log('Logging out user');
+      dispatch(logout());
+      clearAuthState();
+      navigate('/signin');
+    } catch (error) {
+      console.error('Error during logout:', error);
+      // Force navigation to signin even if there was an error
+      navigate('/signin');
+    }
   };
 
   const toggleMenu = () => {
