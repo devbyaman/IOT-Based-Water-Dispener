@@ -1,5 +1,27 @@
 import axios from 'axios';
 
+// Function to check if token is expired
+const isTokenExpired = (token) => {
+    if (!token) return true;
+    
+    try {
+        // Extract the payload part of the JWT
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        
+        // Check if the exp field exists and the token has expired
+        return payload.exp ? payload.exp * 1000 < Date.now() : false;
+    } catch (error) {
+        console.error('Error decoding token:', error);
+        return true; // If we can't decode the token, consider it expired
+    }
+};
+
+// Function to clear authentication state
+const clearAuthState = () => {
+    localStorage.removeItem('token');
+    document.cookie = 'token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
+};
+
 // Determine the base URL based on environment
 const getBaseUrl = () => {
     // Check if we're running on the production domain
@@ -26,6 +48,14 @@ api.interceptors.request.use(
         console.log('Request interceptor - Token from localStorage:', token);
         
         if (token) {
+            // Check if token is expired before using it
+            if (isTokenExpired(token)) {
+                console.log('Request interceptor - Token is expired, clearing auth state');
+                clearAuthState();
+                window.location.href = '/signin';
+                return Promise.reject(new Error('Token expired'));
+            }
+            
             config.headers.Authorization = `Bearer ${token}`;
             console.log('Request interceptor - Headers with token:', config.headers);
         } else {
@@ -50,12 +80,12 @@ api.interceptors.response.use(
         console.error('Response interceptor - Error response:', error.response);
         
         if (error.response?.status === 401) {
-            console.log('Response interceptor - 401 Unauthorized, clearing token');
-            localStorage.removeItem('token');
+            console.log('Response interceptor - 401 Unauthorized, clearing auth state');
+            clearAuthState();
             window.location.href = '/signin';
         }
         return Promise.reject(error);
     }
 );
 
-export default api; 
+export { api as default, isTokenExpired, clearAuthState }; 

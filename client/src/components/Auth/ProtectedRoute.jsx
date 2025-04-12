@@ -1,5 +1,6 @@
 import React from 'react';
 import { Navigate } from 'react-router-dom';
+import { isTokenExpired, clearAuthState } from '../../utils/axios';
 
 // Function to get token from cookies
 const getTokenFromCookies = () => {
@@ -29,8 +30,16 @@ const ProtectedRoute = ({ children }) => {
     
     console.log("Token in ProtectedRoute:", token ? "Token exists" : "No token found");
 
-    if (!token) {
-        console.log("No authentication token found, redirecting to login");
+    // Check if token is missing or expired
+    if (!token || isTokenExpired(token)) {
+        console.log("No valid authentication token found, redirecting to login");
+        
+        // Clear auth state if token is expired (not just missing)
+        if (token) {
+            console.log("Token expired, clearing authentication state");
+            clearAuthState();
+        }
+        
         return <Navigate to='/signin' />
     }
 
